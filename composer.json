@@ -1,0 +1,28 @@
+{
+    "name": "softlogic-gt/neopay-laravel",
+    "description": "NeoPay Laravel Payment Gateway",
+    "authors": [
+        {
+            "name": "Softlogic",
+            "email": "software@softlogic.com.gt"
+        }
+    ],
+    "require": {
+        "php": ">=7.2",
+        "laravel-validation-rules/credit-card": "^1.7"
+    },
+    "autoload": {
+        "classmap": [],
+        "psr-4": {
+            "SoftlogicGT\\NeoPayLaravel\\": "src"
+        }
+    },
+    "minimum-stability": "stable",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "SoftlogicGT\\NeoPayLaravel\\NeoPayServiceProvider"
+            ]
+        }
+    }
+}
