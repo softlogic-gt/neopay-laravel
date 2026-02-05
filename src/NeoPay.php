@@ -2,6 +2,7 @@
 namespace SoftlogicGT\NeoPayLaravel;
 
 use Log;
+use Illuminate\Http\Request;
 use LVR\CreditCard\CardNumber;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Http;
