@@ -186,9 +186,8 @@ class NeoPay
 
     public function __construct(array $config = [])
     {
-        $this->params['Merchant']['TerminalId']             = config('neopay.terminal');
-        $this->params['Merchant']['CardAcqId']              = config('neopay.affilliation');
-        $this->params['PayerAuthentication']['UrlCommerce'] = config('neopay.redirect');
+        $this->params['Merchant']['TerminalId'] = config('neopay.terminal');
+        $this->params['Merchant']['CardAcqId']  = config('neopay.affilliation');
 
         // $receipt = $config['receipt'] ?? [];
         // foreach (['email', 'subject', 'name'] as $key) {
@@ -310,7 +309,8 @@ class NeoPay
                 'PaymentInstrumentTokenId' => $paymentToken,
             ],
             'PayerAuthentication' => [
-                'Step' => '1',
+                'Step'        => '1',
+                'UrlCommerce' => config('neopay.redirect'),
             ],
             'AdditionalData'      => $installments,
         ];
