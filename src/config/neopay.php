@@ -6,4 +6,5 @@ return [
     'terminal'     => env('NEOPAY_TERMINAL'),
     'user'         => env('NEOPAY_USER'),
     'password'     => env('NEOPAY_PASSWORD'),
+    'redirect'     => env('NEOPAY_REDIRECT'),
 ];

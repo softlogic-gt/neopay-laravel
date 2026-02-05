@@ -3,6 +3,7 @@ namespace SoftlogicGT\NeoPayLaravel;
 
 use Log;
 use LVR\CreditCard\CardNumber;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Client\PendingRequest;
@@ -185,8 +186,9 @@ class NeoPay
 
     public function __construct(array $config = [])
     {
-        $this->params['Merchant']['TerminalId'] = config('neopay.terminal');
-        $this->params['Merchant']['CardAcqId']  = config('neopay.affilliation');
+        $this->params['Merchant']['TerminalId']             = config('neopay.terminal');
+        $this->params['Merchant']['CardAcqId']              = config('neopay.affilliation');
+        $this->params['PayerAuthentication']['UrlCommerce'] = config('neopay.redirect');
 
         // $receipt = $config['receipt'] ?? [];
         // foreach (['email', 'subject', 'name'] as $key) {
@@ -271,15 +273,16 @@ class NeoPay
         ];
     }
 
-    public function saleWithToken($paymentToken, $cvv, $amount, $externalId)
+    public function saleWithToken($paymentToken, $cvv, $amount, $externalId, $installments = null)
     {
-        $data = compact("paymentToken", "cvv", "amount", "externalId");
+        $data = compact("paymentToken", "cvv", "amount", "installments", "externalId");
 
         $rules = [
             'paymentToken' => ['required'],
             'cvv'          => ['required'],
             'amount'       => 'required|numeric',
-            'externalId'   => 'required',
+            'externalId'   => ['required'],
+            'installments' => ['nullable', Rule::in($this->approvedInstallments)],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -287,7 +290,8 @@ class NeoPay
             throw new ValidationException($validator);
         }
 
-        $payload = [
+        $installments = $installments ? ('VC' . $installments) : '';
+        $payload      = [
             'MessageTypeId'       => '0200',
             'ProcessingCode'      => '000000',
             'SystemsTraceNo'      => str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT),
@@ -306,9 +310,9 @@ class NeoPay
                 'PaymentInstrumentTokenId' => $paymentToken,
             ],
             'PayerAuthentication' => [
-                'Step'        => '1',
-                'UrlCommerce' => 'http://localhost/neopay/response',
+                'Step' => '1',
             ],
+            'AdditionalData'      => $installments,
         ];
 
         $payload = array_replace_recursive($this->params, $payload);
