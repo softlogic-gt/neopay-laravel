@@ -290,7 +290,7 @@ class NeoPay
             throw new ValidationException($validator);
         }
 
-        $installments = $installments ? ('VC' . $installments) : '';
+        $installments = $installments ? ('VC' . str_pad($installments, 2, "0", STR_PAD_LEFT)) : '';
         $payload      = [
             'MessageTypeId'       => '0200',
             'ProcessingCode'      => '000000',
