@@ -311,7 +311,7 @@ class NeoPay
             ],
             'PayerAuthentication' => [
                 'Step'        => '1',
-                'UrlCommerce' => config('neopay.redirect'),
+                'UrlCommerce' => config('neopay.redirect') . '?externalid=' . $externalId,
             ],
             'AdditionalData'      => $installments,
         ];
@@ -329,16 +329,11 @@ class NeoPay
         }
 
         $params = [
-            'action'            => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
-            'token'             => $data['PayerAuthentication']['AccessToken'],
-            'referenceid'       => $data['PayerAuthentication']['ReferenceId'],
-            'url_complete_sale' => config('neopay.url_complete_sale'),
-            'externalid'        => $externalId,
+            'action'      => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
+            'token'       => $data['PayerAuthentication']['AccessToken'],
+            'referenceid' => $data['PayerAuthentication']['ReferenceId'],
+            'externalid'  => $externalId,
         ];
-
-        Log::info('Step1');
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
 
         $html = view('neopay-laravel::step2', $params);
 
@@ -388,10 +383,6 @@ class NeoPay
         }
 
         $data = $response->json();
-        Log::info('Step3');
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
-        // dd(json_encode($payload), json_encode($data));
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
         }
@@ -418,8 +409,10 @@ class NeoPay
 
         if (request()->expectsJson()) {
             return [
-                'step' => $data['PayerAuthentication']['Step'],
-                'html' => $html->render(),
+                'step'        => $data['PayerAuthentication']['Step'],
+                'referenceid' => $params['referenceid'],
+                'externalid'  => $params['externalid'],
+                'html'        => $html->render(),
             ];
         }
 
