@@ -316,10 +316,7 @@ class NeoPay
             'AdditionalData'      => $installments,
         ];
 
-        $payload = array_replace_recursive($this->params, $payload);
-
-        // print_r($payload);
-
+        $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
@@ -389,10 +386,11 @@ class NeoPay
 
         if (in_array($data['PayerAuthentication']['Step'], [3, 5])) {
             return [
-                'externalid' => $externalId,
-                'response'   => $data['ResponseCode'],
-                'authcode'   => $data['PrivateUse63']['AlternateHostResponse22'],
-                'step'       => $data['PayerAuthentication']['Step'],
+                'response'    => $data['ResponseCode'],
+                'authcode'    => $data['PrivateUse63']['AlternateHostResponse22'],
+                'referenceid' => $data['PayerAuthentication']['ReferenceId'],
+                'externalid'  => $externalId,
+                'step'        => $data['PayerAuthentication']['Step'],
             ];
         }
 
@@ -409,10 +407,10 @@ class NeoPay
 
         if (request()->expectsJson()) {
             return [
-                'step'        => $data['PayerAuthentication']['Step'],
+                'html'        => $html->render(),
                 'referenceid' => $params['referenceid'],
                 'externalid'  => $params['externalid'],
-                'html'        => $html->render(),
+                'step'        => $data['PayerAuthentication']['Step'],
             ];
         }
 
@@ -445,6 +443,41 @@ class NeoPay
                 'Step'        => $step,
                 'ReferenceId' => $referenceId,
             ],
+        ];
+
+        $payload  = array_replace_recursive($this->params, $payload);
+        $client   = $this->getClient();
+        $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
+        $data     = $response->json();
+
+        if ($data['ResponseCode'] != '00') {
+            abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
+        }
+
+        return response()->json('ok');
+    }
+
+    public function cancellation($externalId)
+    {
+        $data = compact("externalId");
+
+        $rules = [
+            'externalId' => 'required',
+        ];
+
+        $validator = Validator::make($data, $rules);
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $payload = [
+            'MessageTypeId'    => '0200',
+            'ProcessingCode'   => '020000',
+            'SystemsTraceNo'   => str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT),
+            'PosEntryMode'     => '012',
+            'Nii'              => '003',
+            'PosConditionCode' => '00',
+            'FormatId'         => '1',
         ];
 
         $payload  = array_replace_recursive($this->params, $payload);
