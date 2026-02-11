@@ -8,15 +8,7 @@
 </head>
 
 <body>
-    <iframe
-            id="step_up_iframe"
-            style="border: none; margin-left: auto; margin-right: auto; display: block"
-            height="800px"
-            width="400px"
-            name="stepUpIframe"
-        >
-    </iframe>
-    <form id="step_up_form" name="stepup" method="POST" target="stepUpIframe" action="{{ $action }}">
+    <form id="step_up_form" name="stepup" method="POST" action="{{ $action }}">
         <input id="step_up_form_jwt_input" type="hidden" name="JWT" value="{{ $token }}" />
     </form>
     <script>
