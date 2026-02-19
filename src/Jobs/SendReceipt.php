@@ -7,7 +7,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use SoftlogicGT\LaravelEpayServer\Mail\CCReceipt;
+use SoftlogicGT\NeoPayLaravel\Mail\CCReceipt;
 
 class SendReceipt implements ShouldQueue
 {
