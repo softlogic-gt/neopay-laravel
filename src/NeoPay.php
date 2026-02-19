@@ -2,6 +2,7 @@
 namespace SoftlogicGT\NeoPayLaravel;
 
 use Log;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use LVR\CreditCard\CardNumber;
 use Illuminate\Validation\Rule;
@@ -9,15 +10,17 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Validation\ValidationException;
+use SoftlogicGT\NeoPayLaravel\Jobs\SendReceipt;
 
 class NeoPay
 {
-    protected $approvedInstallments = [3, 6, 10, 12, 18, 24];
-    // protected $receipt              = [
-    //     'email'   => null,
-    //     'subject' => 'Comprobante de pago',
-    //     'name'    => '',
-    // ];
+    protected $approvedInstallments = ['VC03', 'VC06', 'VC10', 'VC12', 'VC18', 'VC24'];
+    protected $receipt              = [
+        'email'   => null,
+        'subject' => 'Comprobante de pago',
+        'name'    => '',
+        'cc'      => '',
+    ];
 
     protected $params = [
         'ProcessingCode'            => '',
@@ -190,12 +193,12 @@ class NeoPay
         $this->params['Merchant']['TerminalId'] = config('neopay.terminal');
         $this->params['Merchant']['CardAcqId']  = config('neopay.affilliation');
 
-        // $receipt = $config['receipt'] ?? [];
-        // foreach (['email', 'subject', 'name'] as $key) {
-        //     if (isset($receipt[$key])) {
-        //         $this->receipt[$key] = $receipt[$key];
-        //     }
-        // }
+        $receipt = $config['receipt'] ?? [];
+        foreach (['email', 'subject', 'name', 'cc'] as $key) {
+            if (isset($receipt[$key])) {
+                $this->receipt[$key] = $receipt[$key];
+            }
+        }
     }
 
     public function tokenize($creditCard, $expirationMonth, $expirationYear, $name, $lastName, $address, $locality, $zipCode, $countryCode, $email, $phone)
@@ -290,11 +293,10 @@ class NeoPay
             throw new ValidationException($validator);
         }
 
-        $installments = $installments ? ('VC' . str_pad($installments, 2, "0", STR_PAD_LEFT)) : '';
-        $payload      = [
+        $payload = [
             'MessageTypeId'       => '0200',
             'ProcessingCode'      => '000000',
-            'SystemsTraceNo'      => str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT),
+            'SystemsTraceNo'      => $this->getStrExternalId($externalId),
             'PosEntryMode'        => '012',
             'Nii'                 => '003',
             'PosConditionCode'    => '00',
@@ -358,7 +360,7 @@ class NeoPay
         $payload = [
             'MessageTypeId'       => '0200',
             'ProcessingCode'      => '000000',
-            'SystemsTraceNo'      => str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT),
+            'SystemsTraceNo'      => $this->getStrExternalId($externalId),
             'PosEntryMode'        => '012',
             'Nii'                 => '003',
             'PosConditionCode'    => '00',
@@ -381,10 +383,16 @@ class NeoPay
 
         $data = $response->json();
         if ($data['ResponseCode'] != '00') {
+            if ($data['ResponseCode'] == '91') {
+                $this->reversal($referenceId, $externalId, $step);
+            }
+
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
         }
 
         if (in_array($data['PayerAuthentication']['Step'], [3, 5])) {
+            $this->sendReceipt($data);
+
             return [
                 'response'    => $data['ResponseCode'],
                 'authcode'    => $data['PrivateUse63']['AlternateHostResponse22'],
@@ -434,7 +442,7 @@ class NeoPay
         $payload = [
             'MessageTypeId'       => '0400',
             'ProcessingCode'      => '000000',
-            'SystemsTraceNo'      => str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT),
+            'SystemsTraceNo'      => $this->getStrExternalId($externalId),
             'PosEntryMode'        => '012',
             'Nii'                 => '003',
             'PosConditionCode'    => '00',
@@ -457,12 +465,13 @@ class NeoPay
         return response()->json('ok');
     }
 
-    public function cancellation($externalId)
+    public function cancellation($externalId, $amount)
     {
-        $data = compact("externalId");
+        $data = compact("externalId", "amount");
 
         $rules = [
             'externalId' => 'required',
+            'amount'     => 'required',
         ];
 
         $validator = Validator::make($data, $rules);
@@ -473,7 +482,7 @@ class NeoPay
         $payload = [
             'MessageTypeId'    => '0200',
             'ProcessingCode'   => '020000',
-            'SystemsTraceNo'   => str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT),
+            'SystemsTraceNo'   => $this->getStrExternalId($externalId),
             'PosEntryMode'     => '012',
             'Nii'              => '003',
             'PosConditionCode' => '00',
@@ -488,6 +497,8 @@ class NeoPay
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
         }
+        $amount = $amount * 100;
+        $this->sendReceipt($data, $amount);
 
         return response()->json('ok');
     }
@@ -530,5 +541,33 @@ class NeoPay
         abort(400, 'Solo se acepta Visa o Mastercard');
 
         return '000';
+    }
+
+    private function sendReceipt($response, $amount = null)
+    {
+        if ($this->receipt['email']) {
+            $amount      = $amount ? $amount : $response['AmountTrans'];
+            $receiptData = [
+                'email'        => $this->receipt['email'],
+                'subject'      => $this->receipt['subject'],
+                'name'         => $this->receipt['name'],
+                'cc'           => '####-####-####-' . substr($this->receipt['cc'], -4, 4),
+                'date'         => Carbon::now(),
+                'amount'       => $response['ProcessingCode'] != '020000' ? $amount : -$amount,
+                'ref_number'   => $response['RetrievalRefNo'],
+                'auth_number'  => $response['AuthIdResponse'],
+                'audit_number' => $response['PrivateUse63']['AlternateHostResponse22'],
+                'merchant'     => config('neopay.affilliation'),
+            ];
+
+            SendReceipt::dispatch($receiptData);
+        }
+
+        return $response;
+    }
+
+    private function getStrExternalId($externalId)
+    {
+        return str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT);
     }
 }

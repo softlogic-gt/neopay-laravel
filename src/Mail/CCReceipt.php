@@ -29,6 +29,6 @@ class CCReceipt extends Mailable
     {
         return $this
             ->subject($this->receiptData['subject'])
-            ->view('neopay-laravel::receipt');
+            ->markdown('neopay-laravel::receipt');
     }
 }
