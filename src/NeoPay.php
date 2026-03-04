@@ -23,6 +23,8 @@ class NeoPay
     ];
 
     protected $params = [
+        'MessageTypeId'             => '',
+        'SystemsTraceNo'            => '',
         'ProcessingCode'            => '',
         'TimeLocalTrans'            => '',
         'DateLocalTrans'            => '',
@@ -201,12 +203,12 @@ class NeoPay
         }
     }
 
-    public function tokenize($creditCard, $expirationMonth, $expirationYear, $name, $lastName, $address, $locality, $zipCode, $countryCode, $email, $phone)
+    public function tokenize($creditCard, $expirationMonth, $expirationYear, $name, $lastName, $address, $locality, $zipCode, $countryCode, $subdivisionCode, $email, $phone)
     {
         $expirationYear = (int) substr((string) $expirationYear, -2);
         $data           = compact(
             "creditCard", "expirationMonth", "expirationYear", "name", "lastName", "address",
-            "locality", "zipCode", "countryCode"
+            "locality", "zipCode", "countryCode", "subdivisionCode"
         );
 
         $rules = [
@@ -219,6 +221,7 @@ class NeoPay
             'locality'        => 'required',
             'zipCode'         => 'required',
             'countryCode'     => 'required|string|size:2|uppercase',
+            'subdivisionCode' => 'required|string|size:3|uppercase',
         ];
 
         $validator = Validator::make($data, $rules);
@@ -246,7 +249,7 @@ class NeoPay
                 'LastName'           => $lastName,
                 'AddressOne'         => $address,
                 'Locality'           => $locality,
-                'AdministrativeArea' => 'GU',
+                'AdministrativeArea' => $subdivisionCode,
                 'PostalCode'         => $zipCode,
                 'Country'            => $countryCode,
                 'Email'              => $email,
@@ -254,20 +257,16 @@ class NeoPay
             ],
         ];
 
-        $payload = array_replace_recursive($this->params, $payload);
-
-        // print_r(json_encode($payload, JSON_PRETTY_PRINT));
-
+        $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
-        Log::info('tokenize');
+        Log::info('---Tokenize---');
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
-            // print_r(json_encode($data, JSON_PRETTY_PRINT));
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
         }
 
@@ -315,13 +314,17 @@ class NeoPay
                 'Step'        => '1',
                 'UrlCommerce' => config('neopay.redirect') . '?externalid=' . $externalId,
             ],
-            'AdditionalData'      => $installments,
+            'AdditionalData'      => $installments ?? '',
         ];
 
         $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
+
+        Log::info('---Sale---');
+        Log::info(json_encode($payload));
+        Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
@@ -375,13 +378,18 @@ class NeoPay
         $client   = $this->getClient();
         $response = $client->timeout(60)->post('api/AuthorizationPaymentCommerce', $payload);
 
-        // Si da timeout, envia reversa automatica
+        // Reversal
         if ($response->failed()) {
             $this->reversal($referenceId, $externalId, $step);
             abort(404, "El servicio de pagos no respondió en el tiempo establecido. Intentar nuevamente.");
         }
 
         $data = $response->json();
+
+        Log::info('---Complete Sale---');
+        Log::info(json_encode($payload));
+        Log::info(json_encode($data));
+
         if ($data['ResponseCode'] != '00') {
             if ($data['ResponseCode'] == '91') {
                 $this->reversal($referenceId, $externalId, $step);
@@ -402,7 +410,7 @@ class NeoPay
             ];
         }
 
-        // flujo paso 4
+        // Step 4
         $params = [
             'action'      => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
             'token'       => $data['PayerAuthentication']['AccessToken'],
@@ -458,6 +466,10 @@ class NeoPay
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
+        Log::info('---Reversal---');
+        Log::info(json_encode($payload));
+        Log::info(json_encode($data));
+
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
         }
@@ -494,6 +506,10 @@ class NeoPay
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
+        Log::info('---Cancellation---');
+        Log::info(json_encode($payload));
+        Log::info(json_encode($data));
+
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
         }
@@ -501,6 +517,48 @@ class NeoPay
         $this->sendReceipt($data, $amount);
 
         return response()->json('ok');
+    }
+
+    public function deleteToken($token)
+    {
+        $data = compact('token');
+
+        $rules = [
+            'token' => 'required',
+        ];
+
+        $validator = Validator::make($data, $rules);
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $payload = [
+            'FormatId'          => '1',
+            'TokenManagement'   => [
+                'Type'         => 'PAYMENT_INSTRUMENT',
+                'ActionMethod' => 'D',
+            ],
+            'PaymentInstrument' => [
+                'PaymentInstrumentTokenId' => $token,
+            ],
+        ];
+
+        $payload = array_replace_recursive($this->params, $payload);
+
+        $client   = $this->getClient();
+        $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
+        $data     = $response->json();
+
+        Log::info('---Delete Tokenize---');
+        Log::info(json_encode($payload));
+        Log::info(json_encode($data));
+
+        if ($data['ResponseCode'] != '00') {
+            abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
+        }
+
+        return response()->json('ok');
+
     }
 
     public function response(Request $request)
@@ -556,7 +614,7 @@ class NeoPay
                 'amount'       => $response['ProcessingCode'] != '020000' ? $amount : -$amount,
                 'ref_number'   => $response['RetrievalRefNo'],
                 'auth_number'  => $response['AuthIdResponse'],
-                'audit_number' => $response['PrivateUse63']['AlternateHostResponse22'],
+                'audit_number' => $response['ProcessingCode'] != '020000' ? $response['PrivateUse63']['AlternateHostResponse22'] : $response['SystemsTraceNo'],
                 'merchant'     => config('neopay.affilliation'),
             ];
 

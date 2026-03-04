@@ -2,8 +2,7 @@
 <table>
 <tbody>
 <tr>
-<td>Método de pago</td>
-<td>Visanet Guatemala, C.A.</td>
+<td>Método de Pago NeoNet</td>
 </tr>
 <tr>
 <td>Fecha transacción</td>
