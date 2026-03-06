@@ -39,7 +39,6 @@
                     JSON.parse(event.data) :
                     event.data;
             } catch (e) {
-                console.error('Invalid message data', e);
                 window.parent.postMessage(
                     {
                         type: 'NEOPAY_ERROR',
@@ -49,8 +48,6 @@
                 );
                 return;
             }
-
-            console.log('Merchant received a message:', data);
 
             if (data && data.Status) {
                  window.parent.postMessage(
