@@ -221,7 +221,7 @@ class NeoPay
             'locality'        => 'required',
             'zipCode'         => 'required',
             'countryCode'     => 'required|string|size:2|uppercase',
-            'subdivisionCode' => 'required|string|size:3|uppercase',
+            'subdivisionCode' => 'required|string|max:3|uppercase',
         ];
 
         $validator = Validator::make($data, $rules);
