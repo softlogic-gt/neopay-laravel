@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Client\ConnectionException;
 use SoftlogicGT\NeoPayLaravel\Jobs\SendReceipt;
 
 class NeoPay
@@ -374,14 +375,18 @@ class NeoPay
             ],
         ];
 
-        $payload  = array_replace_recursive($this->params, $payload);
-        $client   = $this->getClient();
-        $response = $client->timeout(60)->post('api/AuthorizationPaymentCommerce', $payload);
+        $payload = array_replace_recursive($this->params, $payload);
+        $client  = $this->getClient();
 
-        // Reversal
-        if ($response->failed()) {
+        try {
+            $response = $client->timeout(60)->post('api/AuthorizationPaymentCommerce', $payload);
+
+            if ($response->failed()) {
+                abort(400, "Error en el servicio de pagos. Intentar nuevamente.");
+            }
+        } catch (ConnectionException $e) {
             $this->reversal($referenceId, $externalId, $step);
-            abort(404, "El servicio de pagos no respondió en el tiempo establecido. Intentar nuevamente.");
+            abort(400, "El servicio de pagos no respondió en el tiempo establecido. Intentar nuevamente.");
         }
 
         $data = $response->json();
