@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Client\ConnectionException;
 use SoftlogicGT\NeoPayLaravel\Jobs\SendReceipt;
@@ -258,12 +259,13 @@ class NeoPay
             ],
         ];
 
+        Log::info('---Tokenize---');
+
         $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
-        Log::info('---Tokenize---');
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
@@ -318,12 +320,13 @@ class NeoPay
             'AdditionalData'      => $installments ?? '',
         ];
 
+        Log::info('---Sale---');
+
         $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
-        Log::info('---Sale---');
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
@@ -375,23 +378,28 @@ class NeoPay
             ],
         ];
 
+        Log::info('---Complete Sale---');
+
         $payload = array_replace_recursive($this->params, $payload);
         $client  = $this->getClient();
 
         try {
-            $response = $client->timeout(60)->post('api/AuthorizationPaymentCommerce', $payload);
-
-            if ($response->failed()) {
-                abort(400, "Error en el servicio de pagos. Intentar nuevamente.");
-            }
+            $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         } catch (ConnectionException $e) {
+            Log::error('---Error Timeout---');
+
+            Log::error($e->getMessage());
             $this->reversal($referenceId, $externalId, $step);
-            abort(400, "El servicio de pagos no respondió en el tiempo establecido. Intentar nuevamente.");
+            abort(400, "El servicio no respondió en el tiempo establecido. Intentar nuevamente.");
+        } catch (RequestException $e) {
+            Log::error('---Error---');
+            Log::error($e->response?->body());
+
+            abort(400, "Error en el servicio. Intentar nuevamente.");
         }
 
         $data = $response->json();
 
-        Log::info('---Complete Sale---');
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
@@ -466,12 +474,13 @@ class NeoPay
             ],
         ];
 
+        Log::info('---Reversal---');
+
         $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
-        Log::info('---Reversal---');
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
@@ -506,12 +515,13 @@ class NeoPay
             'FormatId'         => '1',
         ];
 
+        Log::info('---Cancellation---');
+
         $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
-        Log::info('---Cancellation---');
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
@@ -548,13 +558,13 @@ class NeoPay
             ],
         ];
 
-        $payload = array_replace_recursive($this->params, $payload);
+        Log::info('---Delete Tokenize---');
 
+        $payload  = array_replace_recursive($this->params, $payload);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
 
-        Log::info('---Delete Tokenize---');
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
