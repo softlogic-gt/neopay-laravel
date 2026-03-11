@@ -11,17 +11,17 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Http\Client\ConnectionException;
 use SoftlogicGT\NeoPayLaravel\Jobs\SendReceipt;
 
 class NeoPay
 {
     protected $approvedInstallments = ['VC03', 'VC06', 'VC10', 'VC12', 'VC18', 'VC24'];
     protected $receipt              = [
-        'email'   => null,
-        'subject' => 'Comprobante de pago',
-        'name'    => '',
-        'cc'      => '',
+        'email'        => null,
+        'subject'      => 'Comprobante de pago',
+        'name'         => '',
+        'cc'           => '',
+        'installments' => '',
     ];
 
     protected $params = [
@@ -198,7 +198,7 @@ class NeoPay
         $this->params['Merchant']['CardAcqId']  = config('neopay.affilliation');
 
         $receipt = $config['receipt'] ?? [];
-        foreach (['email', 'subject', 'name', 'cc'] as $key) {
+        foreach ($this->receipt as $key => $value) {
             if (isset($receipt[$key])) {
                 $this->receipt[$key] = $receipt[$key];
             }
@@ -381,21 +381,19 @@ class NeoPay
         Log::info('---Complete Sale---');
 
         $payload = array_replace_recursive($this->params, $payload);
-        $client  = $this->getClient();
 
         try {
+            $client   = $this->getClient();
             $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
-        } catch (ConnectionException $e) {
-            Log::error('---Error Timeout---');
+        } catch (\Throwable $th) {
+            $error = $th instanceof RequestException
+            ? $th->response?->body()
+            : $th->getMessage();
 
-            Log::error($e->getMessage());
-            $this->reversal($referenceId, $externalId, $step);
-            abort(400, "El servicio no respondió en el tiempo establecido. Intentar nuevamente.");
-        } catch (RequestException $e) {
             Log::error('---Error---');
-            Log::error($e->response?->body());
-
-            abort(400, "Error en el servicio. Intentar nuevamente.");
+            Log::error($error);
+            $this->reversal($referenceId, $externalId, $step);
+            abort(400, $error);
         }
 
         $data = $response->json();
@@ -629,8 +627,9 @@ class NeoPay
                 'amount'       => $response['ProcessingCode'] != '020000' ? $amount : -$amount,
                 'ref_number'   => $response['RetrievalRefNo'],
                 'auth_number'  => $response['AuthIdResponse'],
-                'audit_number' => $response['ProcessingCode'] != '020000' ? $response['PrivateUse63']['AlternateHostResponse22'] : $response['SystemsTraceNo'],
+                'audit_number' => $response['SystemsTraceNo'],
                 'merchant'     => config('neopay.affilliation'),
+                'installments' => $this->receipt['installments'],
             ];
 
             SendReceipt::dispatch($receiptData);
