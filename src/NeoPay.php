@@ -393,7 +393,7 @@ class NeoPay
             Log::error('---Error---');
             Log::error($error);
             $this->reversal($referenceId, $externalId, $step);
-            abort(400, $error);
+            abort(400, 'Error al procesar la transacción.');
         }
 
         $data = $response->json();
