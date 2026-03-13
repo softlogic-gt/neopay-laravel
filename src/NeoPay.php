@@ -350,13 +350,15 @@ class NeoPay
         return $html;
     }
 
-    public function completeSale($referenceId, $externalId, $step)
+    public function completeSale($referenceId, $externalId, $step, $installments = null)
     {
-        $data = compact("referenceId", "externalId");
+        $data = compact("referenceId", "externalId", "installments");
 
         $rules = [
-            'referenceId' => 'required',
-            'externalId'  => 'required',
+            'referenceId'  => 'required',
+            'externalId'   => 'required',
+            'installments' => ['nullable', Rule::in($this->approvedInstallments)],
+
         ];
 
         $validator = Validator::make($data, $rules);
@@ -376,6 +378,8 @@ class NeoPay
                 'Step'        => $step,
                 'ReferenceId' => $referenceId,
             ],
+            'AdditionalData'      => $installments ?? '',
+
         ];
 
         Log::info('---Complete Sale---');
@@ -392,7 +396,7 @@ class NeoPay
 
             Log::error('---Error---');
             Log::error($error);
-            $this->reversal($referenceId, $externalId, $step);
+            $this->reversal($payload);
             abort(400, 'Error al procesar la transacción.');
         }
 
@@ -403,7 +407,7 @@ class NeoPay
 
         if ($data['ResponseCode'] != '00') {
             if ($data['ResponseCode'] == '91') {
-                $this->reversal($referenceId, $externalId, $step);
+                $this->reversal($payload);
             }
 
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
@@ -444,37 +448,15 @@ class NeoPay
         return $html;
     }
 
-    public function reversal($referenceId, $externalId, $step)
+    public function reversal($payload)
     {
-        $data = compact("referenceId", "externalId");
-
-        $rules = [
-            'referenceId' => 'required',
-            'externalId'  => 'required',
-        ];
-
-        $validator = Validator::make($data, $rules);
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
-
-        $payload = [
-            'MessageTypeId'       => '0400',
-            'ProcessingCode'      => '000000',
-            'SystemsTraceNo'      => $this->getStrExternalId($externalId),
-            'PosEntryMode'        => '012',
-            'Nii'                 => '003',
-            'PosConditionCode'    => '00',
-            'FormatId'            => '1',
-            'PayerAuthentication' => [
-                'Step'        => $step,
-                'ReferenceId' => $referenceId,
-            ],
+        $params = [
+            'MessageTypeId' => '0400',
         ];
 
         Log::info('---Reversal---');
 
-        $payload  = array_replace_recursive($this->params, $payload);
+        $payload  = array_replace_recursive($payload, $params);
         $client   = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data     = $response->json();
