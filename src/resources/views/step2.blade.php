@@ -29,10 +29,6 @@
 
         // Listen for Cardinal response
         window.addEventListener('message', function(event) {
-            if (event.origin !== 'https://centinelapistag.cardinalcommerce.com') {
-                return;
-            }
-
             let data;
             try {
                 data = typeof event.data === 'string' ?
