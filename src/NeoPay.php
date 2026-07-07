@@ -567,15 +567,17 @@ class NeoPay
 
     protected function getClient(): PendingRequest
     {
-        $url    = config('neopay.test') ? 'https://epaytestvisanet.com.gt:4433/V3/' : 'https://epayvisanet.com.gt:4433/V3/';
+        $url = config('neopay.test') ? config('neopay.url_test') : config('neopay.url');
+        $headers = [
+            'PaymentgwIP' => config('neopay.test') ? config('neopay.paymentgw_ip_test') : config('neopay.paymentgw_ip'),
+            'ShopperIP' => '190.111.1.198',
+            'MerchantServerIP' => '190.111.1.198',
+            'MerchantUser' => config('neopay.user'),
+            'MerchantPasswd' => config('neopay.password'),
+        ];
+        
         $client = Http::baseUrl($url)
-            ->withHeaders([
-                'PaymentgwIP'      => '190.111.1.198',
-                'ShopperIP'        => '190.111.1.198',
-                'MerchantServerIP' => '190.111.1.198',
-                'MerchantUser'     => config('neopay.user'),
-                'MerchantPasswd'   => config('neopay.password'),
-            ])
+            ->withHeaders($headers)
             ->throw()
             ->timeout(60);
 
