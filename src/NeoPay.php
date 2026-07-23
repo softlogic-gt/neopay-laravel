@@ -1,201 +1,204 @@
 <?php
+
 namespace SoftlogicGT\NeoPayLaravel;
 
-use Log;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
-use LVR\CreditCard\CardNumber;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Log;
+use LVR\CreditCard\CardCvc;
+use LVR\CreditCard\CardNumber;
 use SoftlogicGT\NeoPayLaravel\Jobs\SendReceipt;
 
 class NeoPay
 {
     protected $approvedInstallments = ['VC03', 'VC06', 'VC10', 'VC12', 'VC18', 'VC24'];
-    protected $receipt              = [
-        'email'        => null,
-        'subject'      => 'Comprobante de pago',
-        'name'         => '',
-        'cc'           => '',
+
+    protected $receipt = [
+        'email' => null,
+        'subject' => 'Comprobante de pago',
+        'name' => '',
+        'cc' => '',
         'installments' => '',
     ];
 
     protected $params = [
-        'MessageTypeId'             => '',
-        'SystemsTraceNo'            => '',
-        'ProcessingCode'            => '',
-        'TimeLocalTrans'            => '',
-        'DateLocalTrans'            => '',
-        'PosEntryMode'              => '',
-        'Nii'                       => '',
-        'PosConditionCode'          => '',
-        'AdditionalData'            => '',
-        'OrderInformation'          => '',
-        'FormatId'                  => '1',
-        'Merchant'                  => [
+        'MessageTypeId' => '',
+        'SystemsTraceNo' => '',
+        'ProcessingCode' => '',
+        'TimeLocalTrans' => '',
+        'DateLocalTrans' => '',
+        'PosEntryMode' => '',
+        'Nii' => '',
+        'PosConditionCode' => '',
+        'AdditionalData' => '',
+        'OrderInformation' => '',
+        'FormatId' => '1',
+        'Merchant' => [
             'TerminalId' => '',
-            'CardAcqId'  => '',
+            'CardAcqId' => '',
         ],
-        'Card'                      => [
-            'Type'                  => '',
-            'PrimaryAcctNum'        => '',
-            'DateExpiration'        => '',
-            'Cvv2'                  => '',
-            'Track2Data'            => '',
-            'CardTokenId'           => '',
+        'Card' => [
+            'Type' => '',
+            'PrimaryAcctNum' => '',
+            'DateExpiration' => '',
+            'Cvv2' => '',
+            'Track2Data' => '',
+            'CardTokenId' => '',
             'UniqueCodeofBeneciary' => '',
         ],
-        'Amount'                    => [
-            'AmountTrans'       => '',
-            'AmountDiscount'    => '',
-            'RateDiscount'      => '',
+        'Amount' => [
+            'AmountTrans' => '',
+            'AmountDiscount' => '',
+            'RateDiscount' => '',
             'AdditionalAmounts' => '',
-            'TaxDetail'         => [],
+            'TaxDetail' => [],
         ],
-        'PrivateUse60'              => [
+        'PrivateUse60' => [
             'BatchNumber' => '',
         ],
-        'PrivateUse63'              => [
+        'PrivateUse63' => [
             'LodgingFolioNumber14' => '',
-            'NationalCard25'       => '',
-            'HostReferenceData31'  => '',
-            'TaxAmount1'           => '',
+            'NationalCard25' => '',
+            'HostReferenceData31' => '',
+            'TaxAmount1' => '',
         ],
-        'TokenManagement'           => [
-            'Type'         => '',
+        'TokenManagement' => [
+            'Type' => '',
             'ActionMethod' => '',
         ],
-        'Customer'                  => [
-            'CustomerTokenId'    => '',
-            'FirstName'          => '',
-            'LastName'           => '',
-            'TaxId'              => '',
+        'Customer' => [
+            'CustomerTokenId' => '',
+            'FirstName' => '',
+            'LastName' => '',
+            'TaxId' => '',
             'IdentificationType' => '',
-            'PersonalId'         => '',
-            'Email'              => '',
-            'PhoneNumber'        => '',
+            'PersonalId' => '',
+            'Email' => '',
+            'PhoneNumber' => '',
         ],
-        'BillTo'                    => [
-            'FirstName'          => '',
-            'LastName'           => '',
-            'Company'            => '',
-            'AddressOne'         => '',
-            'AddressTwo'         => '',
-            'Locality'           => '',
+        'BillTo' => [
+            'FirstName' => '',
+            'LastName' => '',
+            'Company' => '',
+            'AddressOne' => '',
+            'AddressTwo' => '',
+            'Locality' => '',
             'AdministrativeArea' => '',
-            'PostalCode'         => '',
-            'Country'            => '',
-            'Email'              => '',
-            'PhoneNumber'        => '',
+            'PostalCode' => '',
+            'Country' => '',
+            'Email' => '',
+            'PhoneNumber' => '',
         ],
-        'ShipTo'                    => [
-            'DefaultSt'              => '',
-            'FirstName'              => '',
-            'LastName'               => '',
-            'Company'                => '',
-            'AddressOne'             => '',
-            'AddressTwo'             => '',
-            'Locality'               => '',
-            'AdministrativeArea'     => '',
-            'PostalCode'             => '',
-            'Country'                => '',
-            'Email'                  => '',
-            'PhoneNumber'            => '',
+        'ShipTo' => [
+            'DefaultSt' => '',
+            'FirstName' => '',
+            'LastName' => '',
+            'Company' => '',
+            'AddressOne' => '',
+            'AddressTwo' => '',
+            'Locality' => '',
+            'AdministrativeArea' => '',
+            'PostalCode' => '',
+            'Country' => '',
+            'Email' => '',
+            'PhoneNumber' => '',
             'ShippingAddressTokenId' => '',
         ],
-        'PaymentInstrument'         => [
+        'PaymentInstrument' => [
             'PaymentInstrumentTokenId' => '',
         ],
         'CustomerPaymentInstrument' => [
             'CustomerPaymentInstrumentTokenId' => '',
-            'DefaultCpi'                       => '',
+            'DefaultCpi' => '',
         ],
-        'PayerAuthentication'       => [
-            'Step'        => '',
+        'PayerAuthentication' => [
+            'Step' => '',
             'ReferenceId' => '',
         ],
     ];
 
     protected $codes = [
-        "00" => "Aprobada",
-        "01" => "Refierase al emisor",
-        "02" => "Refierase al emisor, condición especial",
-        "03" => "comercio o proveedor de servicio no válida",
-        "04" => "Recoger tarjeta",
-        "05" => "Transaccion no aceptada",
-        "06" => "Error",
-        "07" => "Recoger tarjeta condicion especial (Otra a Robada/perdida)",
-        "10" => "Aprobación Parcial",
-        "11" => "Aprobación V.I.P.",
-        "12" => "Transacción no válida",
-        "13" => "Cantidad inválida",
-        "14" => "número de cuenta no válido (no hay tal número)",
-        "15" => "No existe el emisor",
-        "17" => "Cancelacion del cliente",
-        "19" => "Vuelva a introducir la transacción",
-        "20" => "Respuesta Invalida",
-        "21" => "Ninguna medida adoptada",
-        "22" => "Sospecha de Mal funcionamiento",
-        "25" => "No se puede localizar en el archivo de registro, o número de cuenta",
-        "28" => "Archivo no está disponible temporalmente",
-        "30" => "Error de formato",
-        "31" => "Transaccion no soportada por el SWITCH",
-        "41" => "Recoger tarjeta (tarjeta perdida)",
-        "43" => "Recoger tarjeta(tarjeta robada)",
-        "51" => "Insuficiencia de fondos",
-        "52" => "Ninguna cuenta corriente",
-        "53" => "Ninguna cuenta de ahorro",
-        "54" => "La tarjeta ha caducado",
-        "55" => "PIN incorrecto",
-        "57" => "Transacción no permitido a los titulares de tarjetas",
-        "58" => "Transacción no permitida a la terminal",
-        "59" => "Sospechas de fraude",
-        "61" => "La cantidad ha superado el límite",
-        "62" => "Tarjeta restringida",
-        "63" => "Violaciòn de seguridad",
-        "65" => "Fuera de parametros transaccionales",
-        "68" => "Respuesta recibida demasiado tarde",
-        "75" => "Número permitido de intentos de entrada de PIN-superado",
-        "76" => "No se puede localizar el mensaje anterior",
-        "77" => "Mensaje anterior se encuentra una repetición o inversión, pero los datos de repet",
-        "78" => "Bloqueado, primer uso",
-        "80" => "Transacciones de Visa: no disponible emisor del crédito. La marca de distribuidor",
-        "81" => "Error criptografico encontrado en el PIN",
-        "82" => "CAM, dCVV, ICVV, o resultados negativos CVV",
-        "83" => "No se puede verificar PIN",
-        "85" => "No hay razón para rechazar una solicitud de verificación del número de cuenta",
-        "89" => "Terminal inválida",
-        "91" => "Emisor NO disponible",
-        "92" => "Destino no se puede encontrar para el enrutamiento",
-        "93" => "La transacción no se puede completar.  Solo se aceptan tarjetas locales Visa y Mastercard",
-        "94" => "Transacción duplicada",
-        "96" => "Mal funcionamiento del sistema, intente mas tarde",
-        "N0" => "Fuerza CTPI",
-        "se" => "Servicio de caja N3 no disponible",
-        "N3" => "Servicio de caja no disponible",
-        "N4" => "Solicitud de reembolso en efectivo excede el límite de emisor",
-        "N7" => "CVV2 incorrecto",
-        "Di" => "Sminución N7 para el fracaso CVV2",
-        "P2" => "Información no válida emisor de la factura",
-        "P5" => "Solicitud de PIN Cambiar / Desbloquear declinó",
-        "P6" => "Inseguro PIN",
-        "Au" => "Tenticación de tarjeta no Q1",
-        "R0" => "Orden de Suspensión de Pago",
-        "R1" => "Revocación de Autorización de Orden",
-        "R3" => "Revocación de todas las autorizaciones de pedido",
-        "XA" => "Avanzar al emisor",
-        "XD" => "Avanzar al emisor",
-        "Z3" => "No se puede ir en línea",
+        '00' => 'Aprobada',
+        '01' => 'Refierase al emisor',
+        '02' => 'Refierase al emisor, condición especial',
+        '03' => 'comercio o proveedor de servicio no válida',
+        '04' => 'Recoger tarjeta',
+        '05' => 'Transaccion no aceptada',
+        '06' => 'Error',
+        '07' => 'Recoger tarjeta condicion especial (Otra a Robada/perdida)',
+        '10' => 'Aprobación Parcial',
+        '11' => 'Aprobación V.I.P.',
+        '12' => 'Transacción no válida',
+        '13' => 'Cantidad inválida',
+        '14' => 'número de cuenta no válido (no hay tal número)',
+        '15' => 'No existe el emisor',
+        '17' => 'Cancelacion del cliente',
+        '19' => 'Vuelva a introducir la transacción',
+        '20' => 'Respuesta Invalida',
+        '21' => 'Ninguna medida adoptada',
+        '22' => 'Sospecha de Mal funcionamiento',
+        '25' => 'No se puede localizar en el archivo de registro, o número de cuenta',
+        '28' => 'Archivo no está disponible temporalmente',
+        '30' => 'Error de formato',
+        '31' => 'Transaccion no soportada por el SWITCH',
+        '41' => 'Recoger tarjeta (tarjeta perdida)',
+        '43' => 'Recoger tarjeta(tarjeta robada)',
+        '51' => 'Insuficiencia de fondos',
+        '52' => 'Ninguna cuenta corriente',
+        '53' => 'Ninguna cuenta de ahorro',
+        '54' => 'La tarjeta ha caducado',
+        '55' => 'PIN incorrecto',
+        '57' => 'Transacción no permitido a los titulares de tarjetas',
+        '58' => 'Transacción no permitida a la terminal',
+        '59' => 'Sospechas de fraude',
+        '61' => 'La cantidad ha superado el límite',
+        '62' => 'Tarjeta restringida',
+        '63' => 'Violaciòn de seguridad',
+        '65' => 'Fuera de parametros transaccionales',
+        '68' => 'Respuesta recibida demasiado tarde',
+        '75' => 'Número permitido de intentos de entrada de PIN-superado',
+        '76' => 'No se puede localizar el mensaje anterior',
+        '77' => 'Mensaje anterior se encuentra una repetición o inversión, pero los datos de repet',
+        '78' => 'Bloqueado, primer uso',
+        '80' => 'Transacciones de Visa: no disponible emisor del crédito. La marca de distribuidor',
+        '81' => 'Error criptografico encontrado en el PIN',
+        '82' => 'CAM, dCVV, ICVV, o resultados negativos CVV',
+        '83' => 'No se puede verificar PIN',
+        '85' => 'No hay razón para rechazar una solicitud de verificación del número de cuenta',
+        '89' => 'Terminal inválida',
+        '91' => 'Emisor NO disponible',
+        '92' => 'Destino no se puede encontrar para el enrutamiento',
+        '93' => 'La transacción no se puede completar.  Solo se aceptan tarjetas locales Visa y Mastercard',
+        '94' => 'Transacción duplicada',
+        '96' => 'Mal funcionamiento del sistema, intente mas tarde',
+        'N0' => 'Fuerza CTPI',
+        'se' => 'Servicio de caja N3 no disponible',
+        'N3' => 'Servicio de caja no disponible',
+        'N4' => 'Solicitud de reembolso en efectivo excede el límite de emisor',
+        'N7' => 'CVV2 incorrecto',
+        'Di' => 'Sminución N7 para el fracaso CVV2',
+        'P2' => 'Información no válida emisor de la factura',
+        'P5' => 'Solicitud de PIN Cambiar / Desbloquear declinó',
+        'P6' => 'Inseguro PIN',
+        'Au' => 'Tenticación de tarjeta no Q1',
+        'R0' => 'Orden de Suspensión de Pago',
+        'R1' => 'Revocación de Autorización de Orden',
+        'R3' => 'Revocación de todas las autorizaciones de pedido',
+        'XA' => 'Avanzar al emisor',
+        'XD' => 'Avanzar al emisor',
+        'Z3' => 'No se puede ir en línea',
     ];
 
     public function __construct(array $config = [])
     {
         $this->params['Merchant']['TerminalId'] = config('neopay.terminal');
-        $this->params['Merchant']['CardAcqId']  = config('neopay.affilliation');
+        $this->params['Merchant']['CardAcqId'] = config('neopay.affilliation');
 
         $receipt = $config['receipt'] ?? [];
         foreach ($this->receipt as $key => $value) {
@@ -208,21 +211,21 @@ class NeoPay
     public function tokenize($creditCard, $expirationMonth, $expirationYear, $name, $lastName, $address, $locality, $zipCode, $countryCode, $subdivisionCode, $email, $phone)
     {
         $expirationYear = (int) substr((string) $expirationYear, -2);
-        $data           = compact(
-            "creditCard", "expirationMonth", "expirationYear", "name", "lastName", "address",
-            "locality", "zipCode", "countryCode", "subdivisionCode"
+        $data = compact(
+            'creditCard', 'expirationMonth', 'expirationYear', 'name', 'lastName', 'address',
+            'locality', 'zipCode', 'countryCode', 'subdivisionCode'
         );
 
         $rules = [
-            'creditCard'      => ['required', new CardNumber],
+            'creditCard' => ['required', new CardNumber],
             'expirationMonth' => 'required|numeric|lte:12|gte:1',
-            'expirationYear'  => 'required|numeric|lte:99|gte:1',
-            'name'            => 'required',
-            'lastName'        => 'required',
-            'address'         => 'required',
-            'locality'        => 'required',
-            'zipCode'         => 'required',
-            'countryCode'     => 'required|string|size:2|uppercase',
+            'expirationYear' => 'required|numeric|lte:99|gte:1',
+            'name' => 'required',
+            'lastName' => 'required',
+            'address' => 'required',
+            'locality' => 'required',
+            'zipCode' => 'required',
+            'countryCode' => 'required|string|size:2|uppercase',
             'subdivisionCode' => 'required|string|max:3|uppercase',
         ];
 
@@ -231,40 +234,40 @@ class NeoPay
             throw new ValidationException($validator);
         }
 
-        $month = str_pad($expirationMonth, 2, "0", STR_PAD_LEFT);
-        $year  = str_pad($expirationYear, 2, "0", STR_PAD_LEFT);
+        $month = str_pad($expirationMonth, 2, '0', STR_PAD_LEFT);
+        $year = str_pad($expirationYear, 2, '0', STR_PAD_LEFT);
 
         $payload = [
-            'Card'            => [
-                'Type'           => $this->getCCType($creditCard),
+            'Card' => [
+                'Type' => $this->getCCType($creditCard),
                 'PrimaryAcctNum' => $creditCard,
-                'DateExpiration' => $year . $month,
+                'DateExpiration' => $year.$month,
             ],
 
             'TokenManagement' => [
-                'Type'         => 'PAYMENT_INSTRUMENT',
+                'Type' => 'PAYMENT_INSTRUMENT',
                 'ActionMethod' => 'C',
             ],
 
-            'BillTo'          => [
-                'FirstName'          => $name,
-                'LastName'           => $lastName,
-                'AddressOne'         => $address,
-                'Locality'           => $locality,
+            'BillTo' => [
+                'FirstName' => $name,
+                'LastName' => $lastName,
+                'AddressOne' => $address,
+                'Locality' => $locality,
                 'AdministrativeArea' => $subdivisionCode,
-                'PostalCode'         => $zipCode,
-                'Country'            => $countryCode,
-                'Email'              => $email,
-                'PhoneNumber'        => $phone,
+                'PostalCode' => $zipCode,
+                'Country' => $countryCode,
+                'Email' => $email,
+                'PhoneNumber' => $phone,
             ],
         ];
 
         Log::info('---Tokenize---');
 
-        $payload  = array_replace_recursive($this->params, $payload);
-        $client   = $this->getClient();
+        $payload = array_replace_recursive($this->params, $payload);
+        $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
-        $data     = $response->json();
+        $data = $response->json();
 
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
@@ -278,15 +281,27 @@ class NeoPay
         ];
     }
 
-    public function saleWithToken($paymentToken, $cvv, $amount, $externalId, $installments = null)
+    public function sale($creditCard, $cvv, $expirationYear, $expirationMonth, $amount, $name, $lastName, $address, $locality, $zipCode, $countryCode, $subdivisionCode, $email, $phone, $externalId, $installments = null)
     {
-        $data = compact("paymentToken", "cvv", "amount", "installments", "externalId");
+        $expirationYear = (int) substr((string) $expirationYear, -2);
+        $data = compact('creditCard', 'cvv', 'expirationYear', 'expirationMonth', 'amount', 'name', 'lastName', 'address', 'locality', 'zipCode', 'countryCode', 'subdivisionCode', 'email', 'phone', 'externalId', 'installments');
 
         $rules = [
-            'paymentToken' => ['required'],
-            'cvv'          => ['required'],
-            'amount'       => 'required|numeric',
-            'externalId'   => ['required'],
+            'creditCard' => ['required', new CardNumber],
+            'cvv' => ['required', new CardCvc($creditCard)],
+            'expirationYear' => 'required|numeric|lte:99|gte:1',
+            'expirationMonth' => 'required|numeric|lte:12|gte:1',
+            'amount' => 'required|numeric',
+            'name' => 'required',
+            'lastName' => 'required',
+            'address' => 'required',
+            'locality' => 'required',
+            'zipCode' => 'required',
+            'countryCode' => 'required|string|size:2|uppercase',
+            'subdivisionCode' => 'nullable|string|max:3|uppercase',
+            'email' => ['required'],
+            'phone' => ['required'],
+            'externalId' => ['required'],
             'installments' => ['nullable', Rule::in($this->approvedInstallments)],
         ];
 
@@ -295,37 +310,51 @@ class NeoPay
             throw new ValidationException($validator);
         }
 
+        $month = str_pad($expirationMonth, 2, '0', STR_PAD_LEFT);
+        $year = str_pad($expirationYear, 2, '0', STR_PAD_LEFT);
+
         $payload = [
-            'MessageTypeId'       => '0200',
-            'ProcessingCode'      => '000000',
-            'SystemsTraceNo'      => $this->getStrExternalId($externalId),
-            'PosEntryMode'        => '012',
-            'Nii'                 => '003',
-            'PosConditionCode'    => '00',
-            'FormatId'            => '1',
-            'Card'                => [
+            'MessageTypeId' => '0200',
+            'ProcessingCode' => '000000',
+            'SystemsTraceNo' => $this->getStrExternalId($externalId),
+            'PosEntryMode' => '012',
+            'Nii' => '003',
+            'PosConditionCode' => '00',
+            'FormatId' => '1',
+            'Card' => [
+                'Type' => $this->getCCType($creditCard),
+                'PrimaryAcctNum' => $creditCard,
+                'DateExpiration' => $year.$month,
                 'Cvv2' => $cvv,
             ],
-            'Amount'              => [
-                'AmountTrans'    => (int) (round($amount, 2) * 100),
+            'Amount' => [
+                'AmountTrans' => (int) (round($amount, 2) * 100),
                 'TaxInformation' => [],
             ],
-            'PaymentInstrument'   => [
-                'PaymentInstrumentTokenId' => $paymentToken,
+            'BillTo' => [
+                'FirstName' => $name,
+                'LastName' => $lastName,
+                'AddressOne' => $address,
+                'Locality' => $locality,
+                'AdministrativeArea' => $subdivisionCode,
+                'PostalCode' => $zipCode,
+                'Country' => $countryCode,
+                'Email' => $email,
+                'PhoneNumber' => $phone,
             ],
             'PayerAuthentication' => [
-                'Step'        => '1',
-                'UrlCommerce' => config('neopay.redirect') . '?externalid=' . $externalId,
+                'Step' => '1',
+                'UrlCommerce' => config('neopay.redirect').'?externalid='.$externalId,
             ],
-            'AdditionalData'      => $installments ?? '',
+            'AdditionalData' => $installments ?? '',
         ];
 
         Log::info('---Sale---');
 
-        $payload  = array_replace_recursive($this->params, $payload);
-        $client   = $this->getClient();
+        $payload = array_replace_recursive($this->params, $payload);
+        $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
-        $data     = $response->json();
+        $data = $response->json();
 
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
@@ -335,10 +364,82 @@ class NeoPay
         }
 
         $params = [
-            'action'      => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
-            'token'       => $data['PayerAuthentication']['AccessToken'],
+            'action' => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
+            'token' => $data['PayerAuthentication']['AccessToken'],
             'referenceid' => $data['PayerAuthentication']['ReferenceId'],
-            'externalid'  => $externalId,
+            'externalid' => $externalId,
+        ];
+
+        $html = view('neopay-laravel::step2', $params);
+
+        if (request()->expectsJson()) {
+            return $html->render();
+        }
+
+        return $html;
+    }
+
+    public function saleWithToken($paymentToken, $cvv, $amount, $externalId, $installments = null)
+    {
+        $data = compact('paymentToken', 'cvv', 'amount', 'installments', 'externalId');
+
+        $rules = [
+            'paymentToken' => ['required'],
+            'cvv' => ['required'],
+            'amount' => 'required|numeric',
+            'externalId' => ['required'],
+            'installments' => ['nullable', Rule::in($this->approvedInstallments)],
+        ];
+
+        $validator = Validator::make($data, $rules);
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $payload = [
+            'MessageTypeId' => '0200',
+            'ProcessingCode' => '000000',
+            'SystemsTraceNo' => $this->getStrExternalId($externalId),
+            'PosEntryMode' => '012',
+            'Nii' => '003',
+            'PosConditionCode' => '00',
+            'FormatId' => '1',
+            'Card' => [
+                'Cvv2' => $cvv,
+            ],
+            'Amount' => [
+                'AmountTrans' => (int) (round($amount, 2) * 100),
+                'TaxInformation' => [],
+            ],
+            'PaymentInstrument' => [
+                'PaymentInstrumentTokenId' => $paymentToken,
+            ],
+            'PayerAuthentication' => [
+                'Step' => '1',
+                'UrlCommerce' => config('neopay.redirect').'?externalid='.$externalId,
+            ],
+            'AdditionalData' => $installments ?? '',
+        ];
+
+        Log::info('---Sale---');
+
+        $payload = array_replace_recursive($this->params, $payload);
+        $client = $this->getClient();
+        $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
+        $data = $response->json();
+
+        Log::info(json_encode($payload));
+        Log::info(json_encode($data));
+
+        if ($data['ResponseCode'] != '00') {
+            abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
+        }
+
+        $params = [
+            'action' => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
+            'token' => $data['PayerAuthentication']['AccessToken'],
+            'referenceid' => $data['PayerAuthentication']['ReferenceId'],
+            'externalid' => $externalId,
         ];
 
         $html = view('neopay-laravel::step2', $params);
@@ -352,11 +453,11 @@ class NeoPay
 
     public function completeSale($referenceId, $externalId, $step, $installments = null)
     {
-        $data = compact("referenceId", "externalId", "installments");
+        $data = compact('referenceId', 'externalId', 'installments');
 
         $rules = [
-            'referenceId'  => 'required',
-            'externalId'   => 'required',
+            'referenceId' => 'required',
+            'externalId' => 'required',
             'installments' => ['nullable', Rule::in($this->approvedInstallments)],
 
         ];
@@ -367,18 +468,18 @@ class NeoPay
         }
 
         $payload = [
-            'MessageTypeId'       => '0200',
-            'ProcessingCode'      => '000000',
-            'SystemsTraceNo'      => $this->getStrExternalId($externalId),
-            'PosEntryMode'        => '012',
-            'Nii'                 => '003',
-            'PosConditionCode'    => '00',
-            'FormatId'            => '1',
+            'MessageTypeId' => '0200',
+            'ProcessingCode' => '000000',
+            'SystemsTraceNo' => $this->getStrExternalId($externalId),
+            'PosEntryMode' => '012',
+            'Nii' => '003',
+            'PosConditionCode' => '00',
+            'FormatId' => '1',
             'PayerAuthentication' => [
-                'Step'        => $step,
+                'Step' => $step,
                 'ReferenceId' => $referenceId,
             ],
-            'AdditionalData'      => $installments ?? '',
+            'AdditionalData' => $installments ?? '',
 
         ];
 
@@ -387,7 +488,7 @@ class NeoPay
         $payload = array_replace_recursive($this->params, $payload);
 
         try {
-            $client   = $this->getClient();
+            $client = $this->getClient();
             $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         } catch (\Throwable $th) {
             $error = $th instanceof RequestException
@@ -417,31 +518,31 @@ class NeoPay
             $this->sendReceipt($data);
 
             return [
-                'response'    => $data['ResponseCode'],
-                'authcode'    => $data['PrivateUse63']['AlternateHostResponse22'],
+                'response' => $data['ResponseCode'],
+                'authcode' => $data['PrivateUse63']['AlternateHostResponse22'],
                 'referenceid' => $data['PayerAuthentication']['ReferenceId'],
-                'externalid'  => $externalId,
-                'step'        => $data['PayerAuthentication']['Step'],
+                'externalid' => $externalId,
+                'step' => $data['PayerAuthentication']['Step'],
             ];
         }
 
         // Step 4
         $params = [
-            'action'      => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
-            'token'       => $data['PayerAuthentication']['AccessToken'],
+            'action' => $data['PayerAuthentication']['DeviceDataCollectionUrl'],
+            'token' => $data['PayerAuthentication']['AccessToken'],
             'referenceid' => $data['PayerAuthentication']['ReferenceId'],
-            'externalid'  => $externalId,
-            'step'        => $step,
+            'externalid' => $externalId,
+            'step' => $step,
         ];
 
         $html = view('neopay-laravel::step4', $params);
 
         if (request()->expectsJson()) {
             return [
-                'html'        => $html->render(),
+                'html' => $html->render(),
                 'referenceid' => $params['referenceid'],
-                'externalid'  => $params['externalid'],
-                'step'        => $data['PayerAuthentication']['Step'],
+                'externalid' => $params['externalid'],
+                'step' => $data['PayerAuthentication']['Step'],
             ];
         }
 
@@ -456,10 +557,10 @@ class NeoPay
 
         Log::info('---Reversal---');
 
-        $payload  = array_replace_recursive($payload, $params);
-        $client   = $this->getClient();
+        $payload = array_replace_recursive($payload, $params);
+        $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
-        $data     = $response->json();
+        $data = $response->json();
 
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
@@ -473,11 +574,11 @@ class NeoPay
 
     public function cancellation($externalId, $amount)
     {
-        $data = compact("externalId", "amount");
+        $data = compact('externalId', 'amount');
 
         $rules = [
             'externalId' => 'required',
-            'amount'     => 'required',
+            'amount' => 'required',
         ];
 
         $validator = Validator::make($data, $rules);
@@ -486,21 +587,21 @@ class NeoPay
         }
 
         $payload = [
-            'MessageTypeId'    => '0200',
-            'ProcessingCode'   => '020000',
-            'SystemsTraceNo'   => $this->getStrExternalId($externalId),
-            'PosEntryMode'     => '012',
-            'Nii'              => '003',
+            'MessageTypeId' => '0200',
+            'ProcessingCode' => '020000',
+            'SystemsTraceNo' => $this->getStrExternalId($externalId),
+            'PosEntryMode' => '012',
+            'Nii' => '003',
             'PosConditionCode' => '00',
-            'FormatId'         => '1',
+            'FormatId' => '1',
         ];
 
         Log::info('---Cancellation---');
 
-        $payload  = array_replace_recursive($this->params, $payload);
-        $client   = $this->getClient();
+        $payload = array_replace_recursive($this->params, $payload);
+        $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
-        $data     = $response->json();
+        $data = $response->json();
 
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
@@ -528,9 +629,9 @@ class NeoPay
         }
 
         $payload = [
-            'FormatId'          => '1',
-            'TokenManagement'   => [
-                'Type'         => 'PAYMENT_INSTRUMENT',
+            'FormatId' => '1',
+            'TokenManagement' => [
+                'Type' => 'PAYMENT_INSTRUMENT',
                 'ActionMethod' => 'D',
             ],
             'PaymentInstrument' => [
@@ -540,10 +641,10 @@ class NeoPay
 
         Log::info('---Delete Tokenize---');
 
-        $payload  = array_replace_recursive($this->params, $payload);
-        $client   = $this->getClient();
+        $payload = array_replace_recursive($this->params, $payload);
+        $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
-        $data     = $response->json();
+        $data = $response->json();
 
         Log::info(json_encode($payload));
         Log::info(json_encode($data));
@@ -575,7 +676,7 @@ class NeoPay
             'MerchantUser' => config('neopay.user'),
             'MerchantPasswd' => config('neopay.password'),
         ];
-        
+
         $client = Http::baseUrl($url)
             ->withHeaders($headers)
             ->throw()
@@ -601,18 +702,18 @@ class NeoPay
     private function sendReceipt($response, $amount = null)
     {
         if ($this->receipt['email']) {
-            $amount      = $amount ? $amount : $response['AmountTrans'];
+            $amount = $amount ? $amount : $response['AmountTrans'];
             $receiptData = [
-                'email'        => $this->receipt['email'],
-                'subject'      => $this->receipt['subject'],
-                'name'         => $this->receipt['name'],
-                'cc'           => '####-####-####-' . substr($this->receipt['cc'], -4, 4),
-                'date'         => Carbon::now(),
-                'amount'       => $response['ProcessingCode'] != '020000' ? $amount : -$amount,
-                'ref_number'   => $response['RetrievalRefNo'],
-                'auth_number'  => $response['AuthIdResponse'],
+                'email' => $this->receipt['email'],
+                'subject' => $this->receipt['subject'],
+                'name' => $this->receipt['name'],
+                'cc' => '####-####-####-'.substr($this->receipt['cc'], -4, 4),
+                'date' => Carbon::now(),
+                'amount' => $response['ProcessingCode'] != '020000' ? $amount : -$amount,
+                'ref_number' => $response['RetrievalRefNo'],
+                'auth_number' => $response['AuthIdResponse'],
                 'audit_number' => $response['SystemsTraceNo'],
-                'merchant'     => config('neopay.affilliation'),
+                'merchant' => config('neopay.affilliation'),
                 'installments' => $this->receipt['installments'],
             ];
 
@@ -624,6 +725,6 @@ class NeoPay
 
     private function getStrExternalId($externalId)
     {
-        return str_pad(substr($externalId, -6, 6), 6, "0", STR_PAD_LEFT);
+        return str_pad(substr($externalId, -6, 6), 6, '0', STR_PAD_LEFT);
     }
 }
