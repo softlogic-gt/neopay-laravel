@@ -459,7 +459,6 @@ class NeoPay
             'referenceId' => 'required',
             'externalId' => 'required',
             'installments' => ['nullable', Rule::in($this->approvedInstallments)],
-
         ];
 
         $validator = Validator::make($data, $rules);
@@ -479,8 +478,6 @@ class NeoPay
                 'Step' => $step,
                 'ReferenceId' => $referenceId,
             ],
-            'AdditionalData' => $installments ?? '',
-
         ];
 
         Log::info('---Complete Sale---');
@@ -497,6 +494,8 @@ class NeoPay
 
             Log::error('---Error---');
             Log::error($error);
+
+            $payload['AdditionalData'] = $installments ?? '';
             $this->reversal($payload);
             abort(400, 'Error al procesar la transacción.');
         }
