@@ -507,6 +507,7 @@ class NeoPay
 
         if ($data['ResponseCode'] != '00') {
             if ($data['ResponseCode'] == '91') {
+                $payload['AdditionalData'] = $installments ?? '';
                 $this->reversal($payload);
             }
 
