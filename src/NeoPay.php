@@ -497,7 +497,7 @@ class NeoPay
 
             $payload['AdditionalData'] = $installments ?? '';
             $this->reversal($payload);
-            abort(400, 'Error al procesar la transacción.');
+            abort(408, 'Error al procesar la transacción.');
         }
 
         $data = $response->json();
