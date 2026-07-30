@@ -506,12 +506,14 @@ class NeoPay
         Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
+            $code = 400;
             if ($data['ResponseCode'] == '91') {
+                $code = 408;
                 $payload['AdditionalData'] = $installments ?? '';
                 $this->reversal($payload);
             }
 
-            abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
+            abort($code, $data['PrivateUse63']['AlternateHostResponse22']);
         }
 
         if (in_array($data['PayerAuthentication']['Step'], [3, 5])) {
