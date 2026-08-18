@@ -521,7 +521,7 @@ class NeoPay
 
             return [
                 'response' => $data['ResponseCode'],
-                'authcode' => $data['PrivateUse63']['AlternateHostResponse22'],
+                'authcode' => $data['AuthIdResponse'],
                 'referenceid' => $data['PayerAuthentication']['ReferenceId'],
                 'externalid' => $externalId,
                 'step' => $data['PayerAuthentication']['Step'],
