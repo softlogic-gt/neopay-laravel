@@ -356,10 +356,11 @@ class NeoPay
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data = $response->json();
 
-        // Log::info(json_encode($payload));
         // Log::info(json_encode($data));
-
+        
         if ($data['ResponseCode'] != '00') {
+            Log::info('=== Neopay request ===');
+            Log::info(json_encode($payload['BillTo']));
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
         }
 
