@@ -262,15 +262,15 @@ class NeoPay
             ],
         ];
 
-        Log::info('---Tokenize---');
+        // Log::info('---Tokenize---');
 
         $payload = array_replace_recursive($this->params, $payload);
         $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data = $response->json();
 
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
+        // Log::info(json_encode($payload));
+        // Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
@@ -349,15 +349,15 @@ class NeoPay
             'AdditionalData' => $installments ?? '',
         ];
 
-        Log::info('---Sale---');
+        // Log::info('---Sale---');
 
         $payload = array_replace_recursive($this->params, $payload);
         $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data = $response->json();
 
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
+        // Log::info(json_encode($payload));
+        // Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
@@ -421,15 +421,15 @@ class NeoPay
             'AdditionalData' => $installments ?? '',
         ];
 
-        Log::info('---Sale---');
+        // Log::info('---Sale---');
 
         $payload = array_replace_recursive($this->params, $payload);
         $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data = $response->json();
 
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
+        // Log::info(json_encode($payload));
+        // Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
@@ -480,7 +480,7 @@ class NeoPay
             ],
         ];
 
-        Log::info('---Complete Sale---');
+        // Log::info('---Complete Sale---');
 
         $payload = array_replace_recursive($this->params, $payload);
 
@@ -492,8 +492,8 @@ class NeoPay
             ? $th->response?->body()
             : $th->getMessage();
 
-            Log::error('---Error---');
-            Log::error($error);
+            // Log::error('---Error---');
+            // Log::error($error);
 
             $payload['AdditionalData'] = $installments ?? '';
             $this->reversal($payload);
@@ -502,8 +502,8 @@ class NeoPay
 
         $data = $response->json();
 
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
+        // Log::info(json_encode($payload));
+        // Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
             $code = 400;
@@ -557,14 +557,14 @@ class NeoPay
             'MessageTypeId' => '0400',
         ];
 
-        Log::info('---Reversal---');
+        // Log::info('---Reversal---');
 
         $payload = array_replace_recursive($payload, $params);
         $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data = $response->json();
 
-        Log::info(json_encode($payload));
+        // Log::info(json_encode($payload));
         Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
@@ -598,15 +598,15 @@ class NeoPay
             'FormatId' => '1',
         ];
 
-        Log::info('---Cancellation---');
+        // Log::info('---Cancellation---');
 
         $payload = array_replace_recursive($this->params, $payload);
         $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data = $response->json();
 
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
+        // Log::info(json_encode($payload));
+        // Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
@@ -641,15 +641,15 @@ class NeoPay
             ],
         ];
 
-        Log::info('---Delete Tokenize---');
+        // Log::info('---Delete Tokenize---');
 
         $payload = array_replace_recursive($this->params, $payload);
         $client = $this->getClient();
         $response = $client->post('api/AuthorizationPaymentCommerce', $payload);
         $data = $response->json();
 
-        Log::info(json_encode($payload));
-        Log::info(json_encode($data));
+        // Log::info(json_encode($payload));
+        // Log::info(json_encode($data));
 
         if ($data['ResponseCode'] != '00') {
             abort(400, $data['PrivateUse63']['AlternateHostResponse22']);
